@@ -1,5 +1,6 @@
-use rattlesnake::{Settings, run};
+use rattlesnake::{Handles, Settings, run};
 use simplelog::WriteLogger;
+use snake_term::{TerminalUI, prepare_terminal, reset_terminal};
 use std::{env, fs};
 
 const LOG_DIR: &str = "var/log/";
@@ -10,11 +11,18 @@ fn main() {
         enable_logging();
     }
 
+    let handles = Handles {
+        ui: &mut TerminalUI::new(),
+        on_startup: prepare_terminal,
+        on_shutdown: reset_terminal,
+    };
+
     let settings = Settings {
         width: 40,
         height: 20,
     };
-    run(settings);
+
+    run(settings, handles);
 }
 
 fn enable_logging() {

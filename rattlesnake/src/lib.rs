@@ -1,16 +1,21 @@
 //! Snake game.
-use crossterm::{ExecutableCommand, cursor, event, style, terminal};
 use log::{debug, info};
-use std::{
-    fmt,
-    io::{Write, stdout},
-    time,
-};
 
-const SYMBOL_EMPTY: &str = " ";
-const SYMBOL_FOOD: &str = "@";
-const SYMBOL_SNAKE: &str = "S";
-const SYMBOL_WALL: &str = "#";
+pub trait UI {
+    fn draw_field(&self, width: u16, height: u16);
+    fn draw_snake(&self, pos: &(u16, u16));
+    fn draw_food(&self, pos: (u16, u16));
+    fn clear(&self, pos: (u16, u16));
+    fn clear_field(&self, with: u16, height: u16);
+    fn flush(&mut self);
+    fn poll(&self, millis: u64) -> Option<KeyEvent>;
+}
+
+pub struct Handles<'a, U: UI> {
+    pub ui: &'a mut U,
+    pub on_startup: fn(),
+    pub on_shutdown: fn(),
+}
 
 #[derive(Debug)]
 pub struct Settings {
@@ -26,19 +31,27 @@ struct Field {
     y_max: u16,
 }
 
+pub enum KeyEvent {
+    Up,
+    Down,
+    Left,
+    Right,
+    Quit,
+}
+
 enum GameResult {
     GameOver,
     Quit,
 }
 
 // Run the game with given settings.
-pub fn run(settings: Settings) {
+pub fn run<U: UI>(settings: Settings, handles: Handles<U>) {
     info!("Initializing...");
     debug!("Settings: {:#?}", settings);
 
-    prepare();
+    let ui = handles.ui;
 
-    let mut stdout = stdout();
+    (handles.on_startup)();
 
     let anchor_point = (0, 0);
 
@@ -54,55 +67,45 @@ pub fn run(settings: Settings) {
     let spawn =
         random_position(field.x_min, field.x_max, field.y_min, field.y_max);
 
-    draw_box(
-        &SYMBOL_WALL,
-        anchor_point.0,
-        anchor_point.1,
-        settings.width,
-        settings.height,
-    );
+    ui.draw_field(settings.width, settings.height);
+    ui.flush();
 
     let initial_position =
         (field.x_min + field.x_max / 2, field.y_min + field.y_max / 2);
 
-    stdout.flush().unwrap();
-
     info!("Starting game...");
-    while let GameResult::GameOver = play(&field, initial_position, &spawn) {
-        clear(&field);
-        stdout.flush().unwrap();
+    while let GameResult::GameOver = play(ui, &field, initial_position, &spawn)
+    {
+        ui.clear_field(settings.width, settings.height);
+        ui.flush();
         info!("Game Over! Restarting...");
     }
 
     info!("Cleaning up...");
-    cleanup();
+    (handles.on_shutdown)();
     info!("Exiting game...");
 }
 
 // Run a game session.
 fn play(
+    ui: &mut impl UI,
     field: &Field,
     initial_position: (u16, u16),
-    spawn: impl Fn() -> (u16, u16),
+    spawn: &impl Fn() -> (u16, u16),
 ) -> GameResult {
     let mut snake: Vec<(u16, u16)> = vec![initial_position];
     let mut direction: (i16, i16) = (0, 0);
 
     let mut food = spawn();
-    draw(SYMBOL_FOOD, food.0, food.1);
+    ui.draw_food(food);
 
-    let mut stdout = stdout();
     loop {
         // Check if an event is available (with timeout)
-        if event::poll(time::Duration::from_millis(500)).unwrap() {
-            // Read the event
-            if let event::Event::Key(key_event) = event::read().unwrap() {
-                let action = resolve_event(key_event);
-                if let Action::Quit = action {
-                    return GameResult::Quit;
-                }
-                direction = find_direction(key_event, direction);
+        if let Some(event) = ui.poll(500) {
+            if let KeyEvent::Quit = event {
+                return GameResult::Quit;
             }
+            direction = find_direction(event, direction);
         }
         let tail = snake[snake.len() - 1];
         locomote(&mut snake, direction.0, direction.1);
@@ -116,63 +119,25 @@ fn play(
         if tail == food {
             snake.push(food);
             food = random_exclude(&spawn, &snake);
-            draw(SYMBOL_FOOD, food.0, food.1);
+            ui.draw_food(food);
         }
 
+        ui.clear(tail);
         for s in &snake {
-            draw(SYMBOL_EMPTY, tail.0, tail.1);
-            draw(SYMBOL_SNAKE, s.0, s.1);
+            ui.draw_snake(s);
         }
 
-        stdout.flush().unwrap();
-    }
-}
-
-// Prepare terminal state.
-fn prepare() {
-    let mut stdout = stdout();
-    stdout
-        .execute(terminal::Clear(terminal::ClearType::All))
-        .unwrap();
-    stdout.execute(cursor::Hide).unwrap();
-    terminal::enable_raw_mode().unwrap();
-}
-
-// Restore terminal state.
-fn cleanup() {
-    let mut stdout = stdout();
-    stdout.execute(cursor::Show).unwrap();
-}
-
-// Clear the field.
-fn clear(field: &Field) {
-    for x in field.x_min..=field.x_max {
-        for y in field.y_min..=field.y_max {
-            draw(SYMBOL_EMPTY, x, y);
-        }
-    }
-}
-
-enum Action {
-    Quit,
-    None,
-}
-
-// Determine the action based on the key event.
-fn resolve_event(key_event: event::KeyEvent) -> Action {
-    match key_event.code {
-        event::KeyCode::Char('q') => Action::Quit,
-        _ => Action::None,
+        ui.flush();
     }
 }
 
 // Determine the new direction based on the key event and previous direction.
-fn find_direction(key_event: event::KeyEvent, prev: (i16, i16)) -> (i16, i16) {
-    let delta = match key_event.code {
-        event::KeyCode::Up => (0, -1),
-        event::KeyCode::Down => (0, 1),
-        event::KeyCode::Left => (-1, 0),
-        event::KeyCode::Right => (1, 0),
+fn find_direction(event: KeyEvent, prev: (i16, i16)) -> (i16, i16) {
+    let delta = match event {
+        KeyEvent::Up => (0, -1),
+        KeyEvent::Down => (0, 1),
+        KeyEvent::Left => (-1, 0),
+        KeyEvent::Right => (1, 0),
         _ => prev,
     };
     if prev.0 + delta.0 == 0 && prev.1 + delta.1 == 0 {
@@ -258,30 +223,4 @@ fn random_exclude<T: PartialEq>(
             return v;
         }
     }
-}
-
-// Draw a box with top-left corner at `(x, y)`, width `w` and height `h`.
-fn draw_box<T: fmt::Display>(s: &T, x: u16, y: u16, w: u16, h: u16) {
-    if w > 0 {
-        for i in 0..w {
-            draw(s, x + i, y);
-            draw(s, x + i, y + h - 1);
-        }
-    }
-
-    if h > 1 {
-        for j in 1..(h - 1) {
-            draw(s, x, y + j);
-            draw(s, x + w - 1, y + j);
-        }
-    }
-}
-
-// Draw `s` at position `(x, y)`.
-fn draw<T: fmt::Display>(s: T, x: u16, y: u16) {
-    stdout()
-        .execute(cursor::MoveTo(x, y))
-        .unwrap()
-        .execute(style::Print(s))
-        .unwrap();
 }
