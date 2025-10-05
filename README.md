@@ -1,2 +1,3 @@
 # rattlesnake
-Terminal-based snake game written in Rust.
+
+A terminal-based snake game written in Rust that can be compiled to WebAssembly.
