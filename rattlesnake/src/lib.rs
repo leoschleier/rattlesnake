@@ -1,143 +1,114 @@
 //! Snake game.
 use log::{debug, info};
 
-pub trait UI {
-    fn draw_field(&self, width: u16, height: u16);
-    fn draw_snake(&self, pos: &(u16, u16));
-    fn draw_food(&self, pos: (u16, u16));
-    fn clear(&self, pos: (u16, u16));
-    fn clear_field(&self, with: u16, height: u16);
-    fn flush(&mut self);
-    fn poll(&self, millis: u64) -> Option<KeyEvent>;
-}
-
-pub struct Handles<'a, U: UI> {
-    pub ui: &'a mut U,
-    pub on_startup: fn(),
-    pub on_shutdown: fn(),
-}
-
 #[derive(Debug)]
-pub struct Settings {
-    pub width: u16,
-    pub height: u16,
-}
-
-#[derive(Debug)]
-struct Field {
+pub struct Field {
     x_min: u16,
     x_max: u16,
     y_min: u16,
     y_max: u16,
 }
 
-pub enum KeyEvent {
+impl Field {
+    pub fn new(width: u16, height: u16) -> Self {
+        Field {
+            x_min: 1,
+            x_max: width,
+            y_min: 1,
+            y_max: height,
+        }
+    }
+}
+
+pub enum PlayerEvent {
     Up,
     Down,
     Left,
     Right,
     Quit,
+    Idle,
 }
 
-enum GameResult {
+pub enum GameResult {
+    Continue,
     GameOver,
-    Quit,
+}
+
+#[derive(Debug, Default)]
+pub struct GameState {
+    pub snake: Vec<(u16, u16)>,
+    pub food: Vec<(u16, u16)>,
+    pub direction: (i16, i16),
+}
+
+impl GameState {
+    pub fn new() -> Self {
+        GameState {
+            snake: Vec::new(),
+            food: Vec::new(),
+            direction: (0, 0),
+        }
+    }
 }
 
 // Run the game with given settings.
-pub fn run<U: UI>(settings: Settings, handles: Handles<U>) {
-    info!("Initializing...");
-    debug!("Settings: {:#?}", settings);
-
-    let ui = handles.ui;
-
-    (handles.on_startup)();
-
-    let anchor_point = (0, 0);
-
-    let field = Field {
-        x_min: anchor_point.0 + 1,
-        x_max: anchor_point.0 + settings.width - 2,
-        y_min: anchor_point.1 + 1,
-        y_max: anchor_point.1 + settings.height - 2,
-    };
-
+pub fn play(
+    state: &mut GameState,
+    field: &Field,
+    event: &PlayerEvent,
+) -> GameResult {
+    debug!("Game state: {:?}", state);
     debug!("Field: {:?}", field);
 
     let spawn =
         random_position(field.x_min, field.x_max, field.y_min, field.y_max);
 
-    ui.draw_field(settings.width, settings.height);
-    ui.flush();
-
-    let initial_position =
-        (field.x_min + field.x_max / 2, field.y_min + field.y_max / 2);
-
-    info!("Starting game...");
-    while let GameResult::GameOver = play(ui, &field, initial_position, &spawn)
-    {
-        ui.clear_field(settings.width, settings.height);
-        ui.flush();
-        info!("Game Over! Restarting...");
+    // Initialize snake
+    if state.snake.is_empty() {
+        info!("Initializing snake...");
+        let initial_position =
+            (field.x_min + field.x_max / 2, field.y_min + field.y_max / 2);
+        state.snake.push(initial_position);
+    }
+    // Initialize food
+    if state.food.is_empty() {
+        state.food.push(spawn());
     }
 
-    info!("Cleaning up...");
-    (handles.on_shutdown)();
-    info!("Exiting game...");
-}
+    // Move snake
+    state.direction = find_direction(event, state.direction);
+    let past_tail = state.snake[state.snake.len() - 1];
+    locomote(&mut state.snake, state.direction.0, state.direction.1);
+    debug!("Moved snake {:?}", state.snake);
 
-// Run a game session.
-fn play(
-    ui: &mut impl UI,
-    field: &Field,
-    initial_position: (u16, u16),
-    spawn: &impl Fn() -> (u16, u16),
-) -> GameResult {
-    let mut snake: Vec<(u16, u16)> = vec![initial_position];
-    let mut direction: (i16, i16) = (0, 0);
-
-    let mut food = spawn();
-    ui.draw_food(food);
-
-    loop {
-        // Check if an event is available (with timeout)
-        if let Some(event) = ui.poll(500) {
-            if let KeyEvent::Quit = event {
-                return GameResult::Quit;
-            }
-            direction = find_direction(event, direction);
-        }
-        let tail = snake[snake.len() - 1];
-        locomote(&mut snake, direction.0, direction.1);
-
-        debug!("New position {:?}", snake);
-
-        if collided(&snake, field) {
-            return GameResult::GameOver;
-        }
-
-        if tail == food {
-            snake.push(food);
-            food = random_exclude(&spawn, &snake);
-            ui.draw_food(food);
-        }
-
-        ui.clear(tail);
-        for s in &snake {
-            ui.draw_snake(s);
-        }
-
-        ui.flush();
+    // Detect collisions
+    if collided(&state.snake, field) {
+        return GameResult::GameOver;
     }
+
+    // Eat food and spawn new
+    for f_idx in 0..state.food.len() {
+        if past_tail == state.food[f_idx] {
+            state.snake.push(past_tail);
+            info!("Ate food at {:?}", past_tail);
+            state.food.remove(f_idx);
+            let exclude: Vec<(u16, u16)> =
+                state.snake.iter().chain(&state.food).cloned().collect();
+            state.food.push(random_exclude(&spawn, &exclude));
+            break;
+        }
+    }
+
+    GameResult::Continue
 }
 
 // Determine the new direction based on the key event and previous direction.
-fn find_direction(event: KeyEvent, prev: (i16, i16)) -> (i16, i16) {
+fn find_direction(event: &PlayerEvent, prev: (i16, i16)) -> (i16, i16) {
     let delta = match event {
-        KeyEvent::Up => (0, -1),
-        KeyEvent::Down => (0, 1),
-        KeyEvent::Left => (-1, 0),
-        KeyEvent::Right => (1, 0),
+        PlayerEvent::Up => (0, -1),
+        PlayerEvent::Down => (0, 1),
+        PlayerEvent::Left => (-1, 0),
+        PlayerEvent::Right => (1, 0),
         _ => prev,
     };
     if prev.0 + delta.0 == 0 && prev.1 + delta.1 == 0 {
