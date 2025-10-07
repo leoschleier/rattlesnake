@@ -1,38 +1,43 @@
-use rattlesnake::{Handles, Settings, run};
-use simplelog::WriteLogger;
-use snake_term::{TerminalUI, prepare_terminal, reset_terminal};
-use std::{env, fs};
+use apputils::enable_logging;
+use rattlesnake::{Field, GameState, PlayerEvent, play};
+use snake_term::TerminalUI;
 
 const LOG_DIR: &str = "var/log/";
-const LOG_FILE: &str = "var/log/app.log";
+const LOG_FILE: &str = "snake-term.log";
 
 fn main() {
-    if env::var("RS_LOG").unwrap_or("false".to_string()) == "true" {
-        enable_logging();
+    enable_logging(LOG_DIR, LOG_FILE);
+
+    let width: u16 = 40;
+    let height: u16 = 20;
+    let field = Field::new(width, height);
+
+    let mut ui: TerminalUI;
+    let mut state: GameState;
+    let mut event: PlayerEvent;
+    loop {
+        state = GameState::new();
+        event = PlayerEvent::Idle;
+        ui = TerminalUI::new();
+        ui.init(width, height);
+        loop {
+            let result = play(&mut state, &field, &event);
+            match result {
+                rattlesnake::GameResult::Continue => {}
+                rattlesnake::GameResult::GameOver => break,
+            }
+
+            ui.render(&state.snake, &state.food);
+
+            event = ui.poll(250);
+            if let PlayerEvent::Quit = event {
+                break;
+            }
+        }
+        if let PlayerEvent::Quit = event {
+            break;
+        }
     }
 
-    let handles = Handles {
-        ui: &mut TerminalUI::new(),
-        on_startup: prepare_terminal,
-        on_shutdown: reset_terminal,
-    };
-
-    let settings = Settings {
-        width: 40,
-        height: 20,
-    };
-
-    run(settings, handles);
-}
-
-fn enable_logging() {
-    fs::create_dir_all(LOG_DIR).unwrap();
-    let file = fs::File::create(LOG_FILE).unwrap();
-
-    WriteLogger::init(
-        simplelog::LevelFilter::Debug,
-        simplelog::Config::default(),
-        file,
-    )
-    .unwrap();
+    ui.deinit();
 }
