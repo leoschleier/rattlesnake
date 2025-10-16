@@ -1,0 +1,11 @@
+[package]
+name = "snake-wasm"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+apputils = { path = "../apputils" }
+getrandom = { version = "0.3.3", features = ["wasm_js"] }
+macroquad = "0.4.14"
+rattlesnake = { path = "../rattlesnake" }
+simplelog = "0.12.2"

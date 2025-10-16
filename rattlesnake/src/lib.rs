@@ -20,6 +20,7 @@ impl Field {
     }
 }
 
+#[derive(PartialEq)]
 pub enum PlayerEvent {
     Up,
     Down,
