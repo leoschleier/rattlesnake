@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 apputils = { path = "../apputils" }
 getrandom = { version = "0.3.3", features = ["wasm_js"] }
+log = "0.4.28"
 macroquad = "0.4.14"
 rattlesnake = { path = "../rattlesnake" }
 simplelog = "0.12.2"

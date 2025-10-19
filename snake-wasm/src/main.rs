@@ -1,6 +1,8 @@
 use apputils::enable_logging;
+use macroquad::rand;
+use rattlesnake::RandomRange;
 use rattlesnake::{Field, GameState, PlayerEvent, play};
-use snake_wasm::BrowserUI;
+use snake_wasm::{BrowserUI, now_millis};
 
 const LOG_DIR: &str = "var/log/";
 const LOG_FILE: &str = "snake_wasm.log";
@@ -17,20 +19,21 @@ async fn main() {
     let mut ui: BrowserUI;
     let mut state: GameState;
     let mut event: PlayerEvent;
-    let mut start: std::time::Instant;
+    let mut start: u64;
+    let random_range: RandomRange = rand::gen_range;
     loop {
         ui = BrowserUI::new(width, height, thickness);
         state = GameState::new();
         event = PlayerEvent::Idle;
         loop {
-            start = std::time::Instant::now();
+            start = now_millis();
             event = ui.poll(250, &event);
             if let PlayerEvent::Quit = event {
                 break;
             }
-            while start.elapsed().as_millis() < 250 {}
+            while now_millis() - start < 250 {}
 
-            let result = play(&mut state, &field, &event);
+            let result = play(&mut state, &field, &event, &random_range);
             match result {
                 rattlesnake::GameResult::Continue => {}
                 rattlesnake::GameResult::GameOver => break,

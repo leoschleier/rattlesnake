@@ -1,6 +1,6 @@
 use apputils::enable_logging;
-use rattlesnake::{Field, GameState, PlayerEvent, play};
-use snake_term::TerminalUI;
+use rattlesnake::{Field, GameState, PlayerEvent, RandomRange, play};
+use snake_term::{TerminalUI, random_range};
 
 const LOG_DIR: &str = "var/log/";
 const LOG_FILE: &str = "snake-term.log";
@@ -15,13 +15,14 @@ fn main() {
     let mut ui: TerminalUI;
     let mut state: GameState;
     let mut event: PlayerEvent;
+    let random_range: RandomRange = random_range;
     loop {
         state = GameState::new();
         event = PlayerEvent::Idle;
         ui = TerminalUI::new();
         ui.init(width, height);
         loop {
-            let result = play(&mut state, &field, &event);
+            let result = play(&mut state, &field, &event, &random_range);
             match result {
                 rattlesnake::GameResult::Continue => {}
                 rattlesnake::GameResult::GameOver => break,

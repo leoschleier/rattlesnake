@@ -521,7 +521,6 @@ name = "rattlesnake"
 version = "0.1.0"
 dependencies = [
  "log",
- "rand",
 ]
 
 [[package]]
@@ -646,6 +645,7 @@ version = "0.1.0"
 dependencies = [
  "apputils",
  "crossterm",
+ "rand",
  "rattlesnake",
  "simplelog",
 ]
@@ -656,6 +656,7 @@ version = "0.1.0"
 dependencies = [
  "apputils",
  "getrandom",
+ "log",
  "macroquad",
  "rattlesnake",
  "simplelog",

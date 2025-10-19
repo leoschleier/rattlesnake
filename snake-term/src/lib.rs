@@ -164,3 +164,7 @@ impl TerminalUI {
         terminal::disable_raw_mode().unwrap();
     }
 }
+
+pub fn random_range(low: u16, high: u16) -> u16 {
+    rand::random_range(low..high)
+}

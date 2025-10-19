@@ -1,4 +1,4 @@
-use macroquad::{input, shapes};
+use macroquad::{input, shapes, time};
 use rattlesnake::PlayerEvent;
 
 pub struct BrowserUI {
@@ -85,7 +85,7 @@ impl BrowserUI {
     }
 
     pub fn poll(&self, millis: u64, prev: &PlayerEvent) -> PlayerEvent {
-        let start = std::time::Instant::now();
+        let start = now_millis();
         let mut event = PlayerEvent::Idle;
         loop {
             if self.is_pressed(macroquad::prelude::KeyCode::Up) {
@@ -103,8 +103,7 @@ impl BrowserUI {
             if self.is_pressed(macroquad::prelude::KeyCode::Escape) {
                 event = PlayerEvent::Quit;
             }
-            let is_timeout_reached =
-                start.elapsed().as_millis() >= millis as u128;
+            let is_timeout_reached = now_millis() - start >= millis;
             let is_new_event = event != PlayerEvent::Idle && event != *prev;
             if is_timeout_reached || is_new_event {
                 break;
@@ -120,4 +119,8 @@ impl BrowserUI {
     pub async fn flush(&self) {
         macroquad::window::next_frame().await;
     }
+}
+
+pub fn now_millis() -> u64 {
+    (time::get_time() * 1000.0) as u64
 }

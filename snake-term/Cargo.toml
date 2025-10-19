@@ -6,5 +6,6 @@ edition = "2024"
 [dependencies]
 apputils = { path = "../apputils" }
 crossterm = "0.29.0"
+rand = "0.9.2"
 rattlesnake = { path = "../rattlesnake" }
 simplelog = "0.12.2"
