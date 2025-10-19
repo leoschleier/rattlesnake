@@ -20,6 +20,7 @@ impl Field {
     }
 }
 
+#[derive(PartialEq)]
 pub enum PlayerEvent {
     Up,
     Down,
@@ -51,17 +52,25 @@ impl GameState {
     }
 }
 
+pub type RandomRange = fn(u16, u16) -> u16;
+
 // Run the game with given settings.
 pub fn play(
     state: &mut GameState,
     field: &Field,
     event: &PlayerEvent,
+    randomizer: &RandomRange,
 ) -> GameResult {
     debug!("Game state: {:?}", state);
     debug!("Field: {:?}", field);
 
-    let spawn =
-        random_position(field.x_min, field.x_max, field.y_min, field.y_max);
+    let spawn = random_position(
+        randomizer,
+        field.x_min,
+        field.x_max + 1,
+        field.y_min,
+        field.y_max + 1,
+    );
 
     // Initialize snake
     if state.snake.is_empty() {
@@ -165,15 +174,16 @@ fn locomote(snake: &mut Vec<(u16, u16)>, dx: i16, dy: i16) {
 }
 
 // Generate a random position within given bounds.
-fn random_position(
+fn random_position<'a>(
+    randomizer: &'a RandomRange,
     x_min: u16,
     x_max: u16,
     y_min: u16,
     y_max: u16,
-) -> impl Fn() -> (u16, u16) {
+) -> impl Fn() -> (u16, u16) + 'a {
     move || {
-        let x = rand::random_range(x_min..=x_max);
-        let y = rand::random_range(y_min..=y_max);
+        let x = randomizer(x_min, x_max);
+        let y = randomizer(y_min, y_max);
         (x, y)
     }
 }

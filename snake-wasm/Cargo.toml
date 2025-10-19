@@ -1,11 +1,12 @@
 [package]
-name = "snake-term"
+name = "snake-wasm"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 apputils = { path = "../apputils" }
-crossterm = "0.29.0"
-rand = "0.9.2"
+getrandom = { version = "0.3.3", features = ["wasm_js"] }
+log = "0.4.28"
+macroquad = "0.4.14"
 rattlesnake = { path = "../rattlesnake" }
 simplelog = "0.12.2"
