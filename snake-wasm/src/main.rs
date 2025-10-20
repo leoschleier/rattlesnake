@@ -11,8 +11,8 @@ const LOG_FILE: &str = "snake_wasm.log";
 async fn main() {
     enable_logging(LOG_DIR, LOG_FILE);
 
-    let width: u16 = 20;
-    let height: u16 = 20;
+    let width: u16 = 19;
+    let height: u16 = 19;
     let thickness: u16 = 20;
     let field = Field::new(width, height);
 
@@ -39,7 +39,7 @@ async fn main() {
                 rattlesnake::GameResult::GameOver => break,
             }
 
-            ui.render(&state.snake, &state.food);
+            ui.render(&state.snake, &state.food, state.score);
 
             ui.flush().await;
         }

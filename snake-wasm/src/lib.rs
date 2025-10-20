@@ -1,4 +1,4 @@
-use macroquad::{input, shapes, time};
+use macroquad::{input, shapes, text, time};
 use rattlesnake::PlayerEvent;
 
 pub struct BrowserUI {
@@ -16,7 +16,12 @@ impl BrowserUI {
         }
     }
 
-    pub fn render(&mut self, snake: &[(u16, u16)], food: &Vec<(u16, u16)>) {
+    pub fn render(
+        &mut self,
+        snake: &[(u16, u16)],
+        food: &Vec<(u16, u16)>,
+        score: u8,
+    ) {
         let anchor_x = ((macroquad::window::screen_width()
             - (self.width * self.thickness + 2 * self.thickness) as f32)
             / 2.0) as u16;
@@ -39,6 +44,8 @@ impl BrowserUI {
         for s in snake {
             self.draw_snake(&(anchor_x, anchor_y), s, self.thickness);
         }
+
+        self.draw_score(anchor_x, anchor_y - self.thickness, score);
     }
 
     fn draw_field(
@@ -55,7 +62,7 @@ impl BrowserUI {
             (width * thickness + 2 * thickness) as f32,
             (height * thickness + 2 * thickness) as f32,
             thickness as f32,
-            macroquad::color::GREEN,
+            macroquad::color::WHITE,
         );
     }
 
@@ -80,6 +87,17 @@ impl BrowserUI {
             (anchor.1 + pos.1 * thickness) as f32,
             thickness as f32,
             thickness as f32,
+            macroquad::color::WHITE,
+        );
+    }
+
+    fn draw_score(&self, x: u16, y: u16, score: u8) {
+        let score_text = format!("Score: {}", score);
+        text::draw_text(
+            &score_text,
+            x as f32,
+            y as f32,
+            30.0,
             macroquad::color::WHITE,
         );
     }
