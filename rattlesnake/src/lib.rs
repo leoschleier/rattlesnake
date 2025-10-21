@@ -40,6 +40,7 @@ pub struct GameState {
     pub snake: Vec<(u16, u16)>,
     pub food: Vec<(u16, u16)>,
     pub direction: (i16, i16),
+    pub score: u8,
 }
 
 impl GameState {
@@ -48,6 +49,7 @@ impl GameState {
             snake: Vec::new(),
             food: Vec::new(),
             direction: (0, 0),
+            score: 0,
         }
     }
 }
@@ -72,21 +74,18 @@ pub fn play(
         field.y_max + 1,
     );
 
-    // Initialize snake
+    // Initialize snake and food
     if state.snake.is_empty() {
         info!("Initializing snake...");
         let initial_position =
             (field.x_min + field.x_max / 2, field.y_min + field.y_max / 2);
         state.snake.push(initial_position);
-    }
-    // Initialize food
-    if state.food.is_empty() {
-        state.food.push(spawn());
+        state.food.push(random_exclude(&spawn, &[initial_position]));
     }
 
     // Move snake
-    state.direction = find_direction(event, state.direction);
     let past_tail = state.snake[state.snake.len() - 1];
+    state.direction = find_direction(event, state.direction);
     locomote(&mut state.snake, state.direction.0, state.direction.1);
     debug!("Moved snake {:?}", state.snake);
 
@@ -96,14 +95,27 @@ pub fn play(
     }
 
     // Eat food and spawn new
+    let head = state.snake[0];
+    for f_idx in 0..state.food.len() {
+        if head == state.food[f_idx] {
+            let exclude: Vec<(u16, u16)> = state
+                .snake
+                .iter()
+                .chain(&state.food)
+                .cloned()
+                .chain([past_tail])
+                .collect();
+            state.score = state.score.saturating_add(1);
+            let new_food = random_exclude(&spawn, &exclude);
+            state.food.push(new_food);
+            info!("Spawned food at {:?}", new_food);
+        }
+    }
     for f_idx in 0..state.food.len() {
         if past_tail == state.food[f_idx] {
             state.snake.push(past_tail);
-            info!("Ate food at {:?}", past_tail);
             state.food.remove(f_idx);
-            let exclude: Vec<(u16, u16)> =
-                state.snake.iter().chain(&state.food).cloned().collect();
-            state.food.push(random_exclude(&spawn, &exclude));
+            info!("Removed food at {:?}", past_tail);
             break;
         }
     }
