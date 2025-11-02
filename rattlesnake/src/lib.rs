@@ -28,6 +28,7 @@ pub enum PlayerEvent {
     Right,
     Quit,
     Idle,
+    ToggleArrowKeys,
 }
 
 pub enum GameResult {

@@ -27,10 +27,11 @@ async fn main() {
         event = PlayerEvent::Idle;
         loop {
             start = now_millis();
-            event = ui.poll(250, &event);
+            event = poll(&mut ui, &event).await;
             if let PlayerEvent::Quit = event {
                 break;
             }
+
             while now_millis() - start < 250 {}
 
             let result = play(&mut state, &field, &event, &random_range);
@@ -47,4 +48,19 @@ async fn main() {
             break;
         }
     }
+}
+
+async fn poll(ui: &mut BrowserUI, event: &PlayerEvent) -> PlayerEvent {
+    let start = now_millis();
+    let timeout_ms = 250;
+    let mut event_ = ui.poll(timeout_ms, event);
+    while let PlayerEvent::ToggleArrowKeys = event {
+        let remaining_ms = timeout_ms.saturating_sub(now_millis() - start);
+        if remaining_ms == 0 {
+            break;
+        }
+        event_ = ui.poll(remaining_ms, &event_);
+        ui.flush().await;
+    }
+    event_
 }
