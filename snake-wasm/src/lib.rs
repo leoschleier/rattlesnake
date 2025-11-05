@@ -7,6 +7,7 @@ pub struct BrowserUI {
     field_width: u16,
     field_height: u16,
     thickness: u16,
+    base_thickness: u16,
     score: Score,
     arrow_keys: ArrowKeys,
     touch_toggle: ToggleButton,
@@ -51,22 +52,16 @@ impl BrowserUI {
             value: 0,
         };
 
-        let score_text_dim = text::measure_text(
-            score.text.content,
-            None,
-            score.text.font_size,
-            1.0,
-        );
-
         BrowserUI {
             field_x: 0,
             field_y: 0,
             field_width: width,
             field_height: height,
             thickness,
+            base_thickness: thickness,
             score,
             arrow_keys: create_arrow_keys(),
-            touch_toggle: create_touch_toggle(score_text_dim.height),
+            touch_toggle: create_touch_toggle(100.0),
         }
     }
 
@@ -74,23 +69,33 @@ impl BrowserUI {
         let screen_width = window::screen_width();
         let screen_height = window::screen_height();
 
-        self.field_x = ((screen_width
-            - (self.field_width * self.thickness + 2 * self.thickness) as f32)
-            / 2.0) as u16;
-        self.field_y = ((screen_height
-            - (self.field_height * self.thickness + 2 * self.thickness) as f32)
-            / 2.0) as u16;
+        let arrow_key_size = 100.0;
 
-        self.update_arrow_keys_position();
+        let base_width = ((self.field_width + 2) * self.base_thickness) as f32;
+        let base_height = ((self.field_height + 2) * self.base_thickness)
+            as f32
+            + arrow_key_size * 4.0;
+
+        let scale =
+            (screen_width / base_width).min(screen_height / base_height);
+
+        self.thickness = (self.base_thickness as f32 * scale) as u16;
+
+        self.field_x = ((screen_width
+            - ((self.field_width + 2) * self.thickness) as f32)
+            / 2.0) as u16;
+        self.field_y = arrow_key_size as u16 + 2 * self.thickness;
+
+        self.update_arrow_keys_position(arrow_key_size);
         self.update_touch_toggle_position();
     }
 
-    pub fn update_arrow_keys_position(&mut self) {
-        let size = 80.0;
-        // Add 1 to width to account for field border
+    pub fn update_arrow_keys_position(&mut self, size: f32) {
+        // Add 2 to width to account for field border
         let x = (self.field_x + ((self.field_width + 2) * self.thickness) / 2)
             as f32;
-        let y = (self.field_y + self.field_height * self.thickness + 50) as f32;
+        let y = (self.field_y + self.field_height * self.thickness) as f32
+            + 2.0 * size;
         let space = size / 4.0;
         let first_row = y + space;
         let second_row = first_row + size + space;
@@ -106,13 +111,23 @@ impl BrowserUI {
         self.arrow_keys.left.rect.y = second_row;
         self.arrow_keys.right.rect.x = right_column;
         self.arrow_keys.right.rect.y = second_row;
+
+        for button in [
+            &mut self.arrow_keys.up,
+            &mut self.arrow_keys.down,
+            &mut self.arrow_keys.left,
+            &mut self.arrow_keys.right,
+        ] {
+            button.rect.w = size;
+            button.rect.h = size;
+        }
     }
 
     pub fn update_touch_toggle_position(&mut self) {
         self.touch_toggle.button.rect.x =
-            (self.field_x + (self.field_width) * self.thickness) as f32
-                + 0.5 * self.thickness as f32
-                - self.touch_toggle.button.rect.w / 2.0;
+            (self.field_x + self.field_width * self.thickness) as f32
+                + 2.0 * self.thickness as f32
+                - self.touch_toggle.button.rect.w;
 
         self.touch_toggle.button.rect.y =
             self.field_y.saturating_sub(self.thickness) as f32
@@ -384,21 +399,14 @@ fn create_arrow_keys() -> ArrowKeys {
     }
 }
 
-fn create_touch_toggle(height: f32) -> ToggleButton {
+fn create_touch_toggle(size: f32) -> ToggleButton {
     // Touch Toggle Button
     let touch_text = Text {
         content: "Touch",
-        font_size: 20,
+        font_size: 40,
     };
-    let touch_text_dim =
-        text::measure_text(touch_text.content, None, touch_text.font_size, 1.0);
     let button = RectButton {
-        rect: math::Rect::new(
-            0.0,
-            0.0,
-            touch_text_dim.width + 20.0,
-            height + 4.0,
-        ),
+        rect: math::Rect::new(0.0, 0.0, size, size),
         text: touch_text,
         event: PlayerEvent::ToggleArrowKeys,
     };
