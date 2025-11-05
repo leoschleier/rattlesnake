@@ -69,7 +69,7 @@ impl BrowserUI {
         let screen_width = window::screen_width();
         let screen_height = window::screen_height();
 
-        let arrow_key_size = 100.0;
+        let arrow_key_size = 200.0;
 
         let base_width = ((self.field_width + 2) * self.base_thickness) as f32;
         let base_height = ((self.field_height + 2) * self.base_thickness)
@@ -94,9 +94,9 @@ impl BrowserUI {
         // Add 2 to width to account for field border
         let x = (self.field_x + ((self.field_width + 2) * self.thickness) / 2)
             as f32;
-        let y = (self.field_y + self.field_height * self.thickness) as f32
-            + 2.0 * size;
-        let space = size / 4.0;
+        let y =
+            (self.field_y + self.field_height * self.thickness) as f32 + size;
+        let space = size / 5.0;
         let first_row = y + space;
         let second_row = first_row + size + space;
         let center_column = x - size / 2.0;
